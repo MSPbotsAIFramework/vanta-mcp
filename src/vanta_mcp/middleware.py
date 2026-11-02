@@ -5,6 +5,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .config import Settings
+from .logging_utils import bind_request_id, log_structured, new_request_id, reset_request_id
 
 # Per-request credential contextvar (SOP §3.3). Set by GatewayCredentialsMiddleware
 # before the MCP handler runs and reset in `finally`. asyncio copies the context
@@ -46,31 +47,41 @@ class GatewayCredentialsMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope)
-        # Header lookup is case-insensitive in Starlette.
-        client_id = request.headers.get(self._id_header)
-        client_secret = request.headers.get(self._secret_header)
-
-        if not client_id or not client_secret:
-            response = JSONResponse(
-                {
-                    "error": "Missing credentials",
-                    "message": (
-                        f"Missing required header(s): {self.settings.client_id_header}, "
-                        f"{self.settings.client_secret_header}"
-                    ),
-                    "required_headers": [
-                        self.settings.client_id_header,
-                        self.settings.client_secret_header,
-                    ],
-                },
-                status_code=401,
-            )
-            await response(scope, receive, send)
-            return
-
-        token = _vanta_credentials_var.set((client_id, client_secret))
+        # One request-id per request (SOP §6), bound before any handler or
+        # downstream HTTP call can run, so every log line this request
+        # produces -- here or in client.py/auth.py -- can be correlated.
+        request_id_token = bind_request_id(new_request_id())
         try:
-            await self.app(scope, receive, send)
+            request = Request(scope)
+            # Header lookup is case-insensitive in Starlette.
+            client_id = request.headers.get(self._id_header)
+            client_secret = request.headers.get(self._secret_header)
+
+            if not client_id or not client_secret:
+                log_structured(
+                    "missing_credentials", tool="-", path=path, status=401, code="unauthorized"
+                )
+                response = JSONResponse(
+                    {
+                        "error": "Missing credentials",
+                        "message": (
+                            f"Missing required header(s): {self.settings.client_id_header}, "
+                            f"{self.settings.client_secret_header}"
+                        ),
+                        "required_headers": [
+                            self.settings.client_id_header,
+                            self.settings.client_secret_header,
+                        ],
+                    },
+                    status_code=401,
+                )
+                await response(scope, receive, send)
+                return
+
+            creds_token = _vanta_credentials_var.set((client_id, client_secret))
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                _vanta_credentials_var.reset(creds_token)
         finally:
-            _vanta_credentials_var.reset(token)
+            reset_request_id(request_id_token)

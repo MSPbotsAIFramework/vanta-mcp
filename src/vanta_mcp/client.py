@@ -15,6 +15,7 @@ import httpx
 from .auth import fetch_access_token
 from .config import Settings
 from .errors import ToolError
+from .logging_utils import log_structured
 
 _TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
 _MAX_RETRIES = 2
@@ -98,6 +99,9 @@ class VantaClient:
                 if attempt < _MAX_RETRIES:
                     await asyncio.sleep(min(2**attempt, _MAX_BACKOFF_SECONDS))
                     continue
+                log_structured(
+                    "upstream_error", tool=resource, path=path, status=None, code="upstream_error"
+                )
                 raise ToolError(
                     "upstream_error", f"{resource} request unreachable: {exc}"
                 ) from exc
@@ -106,10 +110,17 @@ class VantaClient:
                 await asyncio.sleep(_retry_delay(resp, attempt))
                 continue
 
-            self._raise_for_status(resource, resource_id, resp)
+            self._raise_for_status(resource, resource_id, path, resp)
             try:
                 return resp.json()
             except ValueError as exc:
+                log_structured(
+                    "upstream_error",
+                    tool=resource,
+                    path=path,
+                    status=resp.status_code,
+                    code="upstream_error",
+                )
                 raise ToolError(
                     "upstream_error", f"{resource}: response was not valid JSON"
                 ) from exc
@@ -119,21 +130,29 @@ class VantaClient:
         raise ToolError("upstream_error", f"{resource} request failed with no response")
 
     def _raise_for_status(
-        self, resource: str, resource_id: str | None, resp: httpx.Response
+        self, resource: str, resource_id: str | None, path: str, resp: httpx.Response
     ) -> None:
         if resp.status_code < 400:
             return
         if resp.status_code == 404:
-            raise ToolError("not_found", f"No {resource} found for id={resource_id}")
-        if resp.status_code in (401, 403):
-            raise ToolError("unauthorized", f"Vanta rejected the request for {resource}")
-        if resp.status_code in (400, 422):
-            raise ToolError("invalid_argument", f"Invalid parameters for {resource}")
-        if resp.status_code == 429:
-            raise ToolError("rate_limited", f"Vanta rate limit exceeded for {resource}")
-        if resp.status_code >= 500:
-            raise ToolError("upstream_error", f"{resource} upstream error {resp.status_code}")
-        raise ToolError("upstream_error", f"{resource} unexpected status {resp.status_code}")
+            code, message = "not_found", f"No {resource} found for id={resource_id}"
+        elif resp.status_code in (401, 403):
+            code, message = "unauthorized", f"Vanta rejected the request for {resource}"
+        elif resp.status_code in (400, 422):
+            code, message = "invalid_argument", f"Invalid parameters for {resource}"
+        elif resp.status_code == 429:
+            code, message = "rate_limited", f"Vanta rate limit exceeded for {resource}"
+        elif resp.status_code >= 500:
+            code, message = "upstream_error", f"{resource} upstream error {resp.status_code}"
+        else:
+            code, message = "upstream_error", f"{resource} unexpected status {resp.status_code}"
+        # SOP §6: structured log line on every upstream error -- tool/resource
+        # name, upstream path, status code, our mapped code. Never the
+        # response body or any credential/header value.
+        log_structured(
+            "upstream_error", tool=resource, path=path, status=resp.status_code, code=code
+        )
+        raise ToolError(code, message)
 
 
 async def build_client(credentials: tuple[str, str] | None, settings: Settings) -> VantaClient:
