@@ -4,7 +4,9 @@
     "ac": "AC1",
     "text": "Given valid Vanta credentials, when vanta_get_controls is called with no id, then it returns a data array of controls (id/name/description/source/domains/owner/dates) plus has_more/next_cursor",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination"],
+    "tests": [
+      "tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination PASSED -- asserts curated fields (id/name/description/source/domains/owner/creationDate/modificationDate) are present, customFields/implementationDetails are dropped, and has_more/next_cursor are mapped from the mocked upstream pageInfo"
   },
@@ -25,7 +27,9 @@
     "ac": "AC3",
     "text": "Given status=NEEDS_ATTENTION, vanta_get_tests returns only tests in that status",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter"],
+    "tests": [
+      "tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter PASSED -- asserts the tool passes status=NEEDS_ATTENTION through as the upstream statusFilter query param and returns the mocked matching test"
   },
@@ -34,7 +38,9 @@
     "ac": "AC4",
     "text": "vanta_get_documents returns each document's uploadStatus field",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_documents_includes_upload_status"],
+    "tests": [
+      "tests/test_tools.py::test_list_documents_includes_upload_status"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_documents_includes_upload_status PASSED -- asserts result.data[0].uploadStatus == \"Needs document\""
   },
@@ -43,7 +49,9 @@
     "ac": "AC5",
     "text": "vanta_get_vendors returns status, inherentRiskLevel/residualRiskLevel, and review dates per vendor",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields"],
+    "tests": [
+      "tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields PASSED -- asserts status/inherentRiskLevel/residualRiskLevel/nextSecurityReviewDueDate are present on the returned vendor"
   },
@@ -52,7 +60,9 @@
     "ac": "AC6",
     "text": "Given employment_status=FORMER, vanta_get_people returns only personnel in that status",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_people_employment_status_filter"],
+    "tests": [
+      "tests/test_tools.py::test_list_people_employment_status_filter"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_people_employment_status_filter PASSED -- asserts employment_status=FORMER maps to the upstream employmentStatus param and the mocked FORMER record is returned with employment.status == \"FORMER\""
   },
@@ -61,7 +71,9 @@
     "ac": "AC7",
     "text": "Given a known person id, vanta_get_people returns that single person record",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_get_person_by_known_id_returns_single_object"],
+    "tests": [
+      "tests/test_tools.py::test_get_person_by_known_id_returns_single_object"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_get_person_by_known_id_returns_single_object PASSED -- asserts result.data.id == \"p1\" and emailAddress is returned"
   },
@@ -70,7 +82,9 @@
     "ac": "AC8",
     "text": "Given compliance_status=HD_NOT_ENCRYPTED, vanta_get_monitored_computers returns only devices with that outcome",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_monitored_computers_compliance_status_filter"],
+    "tests": [
+      "tests/test_tools.py::test_list_monitored_computers_compliance_status_filter"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_monitored_computers_compliance_status_filter PASSED -- asserts compliance_status=HD_NOT_ENCRYPTED maps to complianceStatusFilterMatchesAny and diskEncryptionOutcome==\"FAIL\" is returned"
   },
@@ -79,7 +93,9 @@
     "ac": "AC9",
     "text": "Given severity=CRITICAL and a due-date range, vanta_get_issues returns only matching issues with severity/status/dueDate/remediation fields",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_issues_severity_and_date_range_filters"],
+    "tests": [
+      "tests/test_tools.py::test_list_issues_severity_and_date_range_filters"
+    ],
     "result": "pass",
     "evidence": "tests/test_tools.py::test_list_issues_severity_and_date_range_filters PASSED -- asserts severityMatchesAny/dueAfter/dueBefore params are passed upstream and severity/dueDate/correctiveAction are present on the returned issue"
   },
@@ -88,7 +104,9 @@
     "ac": "AC10",
     "text": "Calling any tool with neither X-Vanta-Client-Id nor X-Vanta-Client-Secret set returns 401 with a body naming both required headers",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names"],
+    "tests": [
+      "tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names"
+    ],
     "result": "pass",
     "evidence": "tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names PASSED (required_headers == [\"X-Vanta-Client-Id\", \"X-Vanta-Client-Secret\"], inner app never called); also confirmed live: `curl -i -X POST http://localhost:18181/mcp` with no credential headers returned `401 {\"error\":\"Missing credentials\",\"message\":\"Missing required header(s): X-Vanta-Client-Id, X-Vanta-Client-Secret\",\"required_headers\":[\"X-Vanta-Client-Id\",\"X-Vanta-Client-Secret\"]}` against both the bare `uv run vanta-mcp` process and the built container"
   },
@@ -97,7 +115,9 @@
     "ac": "AC11",
     "text": "Vanta rejecting the client id/secret at the token endpoint (mocked 401) surfaces as a structured unauthorized error, not a 500 or unhandled exception",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized"],
+    "tests": [
+      "tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized"
+    ],
     "result": "pass",
     "evidence": "tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized PASSED -- httpx.MockTransport returns 401 from POST /oauth/token, auth.fetch_access_token raises ToolError(code=\"unauthorized\")"
   },
@@ -118,7 +138,9 @@
     "ac": "AC13",
     "text": "A mocked 429 with Retry-After on the token endpoint, still failing after the bounded retry, surfaces as a structured rate_limited error",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited"],
+    "tests": [
+      "tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited"
+    ],
     "result": "pass",
     "evidence": "tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited PASSED -- httpx.MockTransport returns 429 with Retry-After: 0 on every call; auth.fetch_access_token makes exactly 3 calls (1 initial + 2 bounded retries) then raises ToolError(code=\"rate_limited\")"
   },
@@ -127,7 +149,9 @@
     "ac": "AC14",
     "text": "Two interleaved fake requests using different credential headers never see each other's token or mocked response data",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants"],
+    "tests": [
+      "tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants"
+    ],
     "result": "pass",
     "evidence": "tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants PASSED -- two asyncio.gather'd requests with different (client_id, client_secret) pairs, each yielding via asyncio.sleep(0) mid-request to force interleaving, observe only their own credentials; contextvar is None again after both complete"
   },
@@ -144,5 +168,41 @@
     "expect": "Each list call returns real records with the documented fields and correct pagination; each get-by-known-id call returns that single record; the nonexistent-id call returns the not_found error envelope",
     "result": "blocked",
     "evidence": "n/a -- needs a real Vanta account; not available to DEV01 at build time, does not block publishing to INT per the vendor-mcp completion standard"
+  },
+  {
+    "id": "TC-VAN-016",
+    "ac": "review-round-1-must-fix",
+    "text": "Given VantaClient._raise_for_status maps an upstream HTTP error (e.g. 404), when the error is raised, then a structured log line is emitted with the tool/resource name, upstream path, status code, and mapped error code, and the bearer token is never present in the log text",
+    "type": "auto",
+    "tests": [
+      "tests/test_logging.py::test_upstream_error_is_logged_without_leaking_the_bearer_token"
+    ],
+    "result": "pass",
+    "evidence": "tests/test_logging.py::test_upstream_error_is_logged_without_leaking_the_bearer_token PASSED -- confirmed red against the pre-fix (review round 1) client.py via git show c207f65:src/vanta_mcp/client.py swapped in, green after restoring the fix",
+    "source": "dev"
+  },
+  {
+    "id": "TC-VAN-017",
+    "ac": "review-round-1-must-fix",
+    "text": "Given fetch_access_token receives an error response from the Vanta token endpoint (e.g. 401), when the error is raised, then a structured log line is emitted with tool=oauth_token, status, and mapped error code, and the client secret is never present in the log text",
+    "type": "auto",
+    "tests": [
+      "tests/test_logging.py::test_token_endpoint_error_is_logged_without_leaking_the_client_secret"
+    ],
+    "result": "pass",
+    "evidence": "tests/test_logging.py::test_token_endpoint_error_is_logged_without_leaking_the_client_secret PASSED -- confirmed red against the pre-fix (review round 1) auth.py, green after restoring the fix",
+    "source": "dev"
+  },
+  {
+    "id": "TC-VAN-018",
+    "ac": "review-round-1-must-fix",
+    "text": "Given a /mcp request with no credential headers, when GatewayCredentialsMiddleware returns its 401, then a structured log line is emitted with event=missing_credentials, path=/mcp, status=401, code=unauthorized",
+    "type": "auto",
+    "tests": [
+      "tests/test_logging.py::test_missing_credentials_401_is_logged"
+    ],
+    "result": "pass",
+    "evidence": "tests/test_logging.py::test_missing_credentials_401_is_logged PASSED -- confirmed red against the pre-fix (review round 1) middleware.py, green after restoring the fix",
+    "source": "dev"
   }
 ]
