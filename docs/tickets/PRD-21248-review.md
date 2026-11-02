@@ -19,4 +19,60 @@ Verdict: changes requested
 2. [suggestion] `src/vanta_mcp/client.py:73-119` (`VantaClient.get`) — no size guard or truncation marker on list responses, per SOP §14's "单次返回 ≤ 20,000 字符" item (advisory, §2 "应当" section). Current field curation (`project_fields`) and the default `limit=25`/hard cap `limit=100` make this unlikely to bite in practice, but there's no explicit truncation or warning if a tenant's records are unusually large (e.g. long `description`/`correctiveAction` text on `issues`). Not blocking; worth a one-line note in a fast-follow if real tenant data turns out larger than expected.
 
 ### Fixes
-(to be filled by the dev leg on rework)
+
+Fixed in `42625e2` (synced with `main @ f056d60`, unchanged since round 1 -- no re-merge needed).
+
+1. [must-fix, `client.py:121` / `auth.py:41`] Added `src/vanta_mcp/logging_utils.py`: a
+   per-request id (`ContextVar`, bound by `GatewayCredentialsMiddleware` before any
+   downstream call so client/auth logging can be correlated with it) and
+   `log_structured(event, **fields)`, which emits one compact JSON line via stdlib
+   `logging` (`logger = logging.getLogger("vanta_mcp")`) carrying only the tool/resource
+   name, the upstream path, the HTTP status, and our mapped `code` -- never a credential
+   header value, the bearer token, or a response body.
+
+   - `client.py`: `_raise_for_status` now takes `path` and logs once (refactored the
+     status-code `if/elif` chain to compute `(code, message)` first, so the log call
+     isn't duplicated per branch -- same shape, same error codes/messages as before, just
+     DRY'd). The two other raise sites inside `get()` (connection failure after retries
+     exhausted, non-JSON response body) log too, since those are also upstream-error
+     paths with no prior log line.
+   - `auth.py`: `fetch_access_token`'s six error branches (network error, 429-after-retry,
+     400/401/403, 5xx, other 4xx, invalid JSON, missing `access_token`) now go through one
+     `_log_and_raise(token_url, status, code, message)` helper instead of repeating the
+     log call inline.
+   - `middleware.py`: the 401-on-missing-header path named in the finding now logs too
+     (`event=missing_credentials`), and a request id is bound for the life of every
+     `/mcp` request before the credentials check runs, so a request that fails there still
+     gets a correlatable id.
+
+   Verified against the real Vanta OAuth endpoint (no mocks, placeholder credentials):
+   `tools/call vanta_get_controls` with bogus `X-Vanta-Client-Id`/`X-Vanta-Client-Secret`
+   produced `api.vanta.com/oauth/token` returning `401`, and the service logged
+   `{"event":"upstream_error","request_id":"b124f9904275","tool":"oauth_token","path":"https://api.vanta.com/oauth/token","status":401,"code":"unauthorized"}`
+   to stderr -- no credential value or token in the line. Also verified the
+   `missing_credentials` line on a request with no headers at all (bare process and the
+   built container, see below).
+
+2. [suggestion, `client.py:73-119`] Not addressed in this round -- it was filed as
+   non-blocking (no size guard on `VantaClient.get`'s list responses). Current field
+   curation and the `limit<=100` hard cap keep responses well under SOP §14's 20,000-char
+   guidance in practice; leaving it as a fast-follow candidate per the original note
+   rather than adding speculative truncation logic nothing has asked for.
+
+#### Re-run gates (rework, 2026-11-02)
+
+| Gate | Command | Result |
+|---|---|---|
+| Unit tests | `uv run pytest -q` | 20 passed, 0 failed (same 20 as round 1 -- no test was touched, only `src/`) |
+| Lint | `uv run ruff check .` | All checks passed |
+| Chinese-text scan | `grep -rnP '[\x{4e00}-\x{9fff}]' --exclude-dir=.git --exclude-dir=.venv .` | No hits in any file this round touched (`src/vanta_mcp/{auth,client,middleware,logging_utils}.py`); pre-existing Chinese-language SOP quotes inside this review doc's own round-1 finding text are untouched content from round 1, not introduced by this fix |
+| Container build | `docker build --platform linux/amd64 -t vanta-mcp:prd21248-rework .` | Built successfully, `linux/amd64` confirmed via `docker inspect` |
+| Container smoke test | `docker run`, then `curl http://localhost:18081/health`, `POST /mcp` with no headers, `POST /mcp tools/list` with placeholder headers | `/health` -> `200 {"status":"ok"}`; no-headers -> `401` with the structured `missing_credentials` log line; `tools/list` -> `200` with the same 7-tool list as round 1 |
+| Bare-process smoke test | `uv run python -m vanta_mcp`, same three requests | Same results as the container; additionally called `tools/call vanta_get_controls` with placeholder credentials to force a real upstream 401 from `api.vanta.com/oauth/token` and confirm the new `upstream_error` log line (see above) |
+| Secret scan | `gitleaks` | **Not run this round** -- `gitleaks` binary is not installed in this sandbox (round 1 ran it on a different host). Manually checked `git diff` for this commit against common token/secret patterns (`ghs_`, `ghp_`, `glpat-`, `AKIA`, inline `secret=...` literals) -- no hits. The new code never stores or logs a credential value (that is the fix's own invariant), so there is nothing for a secret scanner to newly flag in it. |
+
+No regressions: same 20/20 unit tests, same 7-tool list, same error-mapping behavior and
+messages -- only a log line was added ahead of each existing raise. Cases TC-VAN-001
+through TC-VAN-014 are unaffected (none of them assert on logging); TC-VAN-015 remains
+blocked on a real Vanta account, unchanged from round 1.
+
