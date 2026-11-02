@@ -4,7 +4,9 @@
     "ac": "AC1",
     "text": "Given valid Vanta credentials, when vanta_get_controls is called with no id, then it returns a data array of controls (id/name/description/source/domains/owner/dates) plus has_more/next_cursor",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination"]
+    "tests": ["tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_controls_returns_mapped_fields_and_pagination PASSED -- asserts curated fields (id/name/description/source/domains/owner/creationDate/modificationDate) are present, customFields/implementationDetails are dropped, and has_more/next_cursor are mapped from the mocked upstream pageInfo"
   },
   {
     "id": "TC-VAN-002",
@@ -14,70 +16,90 @@
     "tests": [
       "tests/test_tools.py::test_get_control_by_known_id_returns_single_object",
       "tests/test_tools.py::test_get_control_by_unknown_id_returns_not_found"
-    ]
+    ],
+    "result": "pass",
+    "evidence": "Both tests PASSED: known id returns {\"data\": {\"id\": \"c1\", ...}}; unknown id returns {\"error\": {\"code\": \"not_found\", \"retryable\": false, ...}}"
   },
   {
     "id": "TC-VAN-003",
     "ac": "AC3",
     "text": "Given status=NEEDS_ATTENTION, vanta_get_tests returns only tests in that status",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter"]
+    "tests": ["tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_tests_status_filter_maps_to_statusFilter PASSED -- asserts the tool passes status=NEEDS_ATTENTION through as the upstream statusFilter query param and returns the mocked matching test"
   },
   {
     "id": "TC-VAN-004",
     "ac": "AC4",
     "text": "vanta_get_documents returns each document's uploadStatus field",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_documents_includes_upload_status"]
+    "tests": ["tests/test_tools.py::test_list_documents_includes_upload_status"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_documents_includes_upload_status PASSED -- asserts result.data[0].uploadStatus == \"Needs document\""
   },
   {
     "id": "TC-VAN-005",
     "ac": "AC5",
     "text": "vanta_get_vendors returns status, inherentRiskLevel/residualRiskLevel, and review dates per vendor",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields"]
+    "tests": ["tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_vendors_includes_risk_and_review_fields PASSED -- asserts status/inherentRiskLevel/residualRiskLevel/nextSecurityReviewDueDate are present on the returned vendor"
   },
   {
     "id": "TC-VAN-006",
     "ac": "AC6",
     "text": "Given employment_status=FORMER, vanta_get_people returns only personnel in that status",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_people_employment_status_filter"]
+    "tests": ["tests/test_tools.py::test_list_people_employment_status_filter"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_people_employment_status_filter PASSED -- asserts employment_status=FORMER maps to the upstream employmentStatus param and the mocked FORMER record is returned with employment.status == \"FORMER\""
   },
   {
     "id": "TC-VAN-007",
     "ac": "AC7",
     "text": "Given a known person id, vanta_get_people returns that single person record",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_get_person_by_known_id_returns_single_object"]
+    "tests": ["tests/test_tools.py::test_get_person_by_known_id_returns_single_object"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_get_person_by_known_id_returns_single_object PASSED -- asserts result.data.id == \"p1\" and emailAddress is returned"
   },
   {
     "id": "TC-VAN-008",
     "ac": "AC8",
     "text": "Given compliance_status=HD_NOT_ENCRYPTED, vanta_get_monitored_computers returns only devices with that outcome",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_monitored_computers_compliance_status_filter"]
+    "tests": ["tests/test_tools.py::test_list_monitored_computers_compliance_status_filter"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_monitored_computers_compliance_status_filter PASSED -- asserts compliance_status=HD_NOT_ENCRYPTED maps to complianceStatusFilterMatchesAny and diskEncryptionOutcome==\"FAIL\" is returned"
   },
   {
     "id": "TC-VAN-009",
     "ac": "AC9",
     "text": "Given severity=CRITICAL and a due-date range, vanta_get_issues returns only matching issues with severity/status/dueDate/remediation fields",
     "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_issues_severity_and_date_range_filters"]
+    "tests": ["tests/test_tools.py::test_list_issues_severity_and_date_range_filters"],
+    "result": "pass",
+    "evidence": "tests/test_tools.py::test_list_issues_severity_and_date_range_filters PASSED -- asserts severityMatchesAny/dueAfter/dueBefore params are passed upstream and severity/dueDate/correctiveAction are present on the returned issue"
   },
   {
     "id": "TC-VAN-010",
     "ac": "AC10",
     "text": "Calling any tool with neither X-Vanta-Client-Id nor X-Vanta-Client-Secret set returns 401 with a body naming both required headers",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names"]
+    "tests": ["tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names"],
+    "result": "pass",
+    "evidence": "tests/test_middleware.py::test_missing_credential_headers_returns_401_with_header_names PASSED (required_headers == [\"X-Vanta-Client-Id\", \"X-Vanta-Client-Secret\"], inner app never called); also confirmed live: `curl -i -X POST http://localhost:18181/mcp` with no credential headers returned `401 {\"error\":\"Missing credentials\",\"message\":\"Missing required header(s): X-Vanta-Client-Id, X-Vanta-Client-Secret\",\"required_headers\":[\"X-Vanta-Client-Id\",\"X-Vanta-Client-Secret\"]}` against both the bare `uv run vanta-mcp` process and the built container"
   },
   {
     "id": "TC-VAN-011",
     "ac": "AC11",
     "text": "Vanta rejecting the client id/secret at the token endpoint (mocked 401) surfaces as a structured unauthorized error, not a 500 or unhandled exception",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized"]
+    "tests": ["tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized"],
+    "result": "pass",
+    "evidence": "tests/test_middleware.py::test_token_endpoint_rejects_credentials_maps_to_unauthorized PASSED -- httpx.MockTransport returns 401 from POST /oauth/token, auth.fetch_access_token raises ToolError(code=\"unauthorized\")"
   },
   {
     "id": "TC-VAN-012",
@@ -87,21 +109,27 @@
     "tests": [
       "tests/test_tools.py::test_limit_above_vendor_ceiling_is_clamped_to_100",
       "tests/test_tools.py::test_next_cursor_round_trip_and_final_page_has_more_false"
-    ]
+    ],
+    "result": "pass",
+    "evidence": "Both tests PASSED, plus tests/test_tools.py::test_clamp_limit_defaults_and_bounds (unit-level: clamp_limit(None)==25, clamp_limit(500)==100, clamp_limit(0)==1, clamp_limit(-5)==1, clamp_limit(50)==50): limit=500 call sends pageSize=100 upstream; cursor=\"cursor-1\" call sends pageCursor=\"cursor-1\" upstream; a final page (pageInfo.hasNextPage=false) returns has_more=false, next_cursor=null"
   },
   {
     "id": "TC-VAN-013",
     "ac": "AC13",
     "text": "A mocked 429 with Retry-After on the token endpoint, still failing after the bounded retry, surfaces as a structured rate_limited error",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited"]
+    "tests": ["tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited"],
+    "result": "pass",
+    "evidence": "tests/test_middleware.py::test_token_endpoint_429_exhausts_retry_then_rate_limited PASSED -- httpx.MockTransport returns 429 with Retry-After: 0 on every call; auth.fetch_access_token makes exactly 3 calls (1 initial + 2 bounded retries) then raises ToolError(code=\"rate_limited\")"
   },
   {
     "id": "TC-VAN-014",
     "ac": "AC14",
     "text": "Two interleaved fake requests using different credential headers never see each other's token or mocked response data",
     "type": "auto",
-    "tests": ["tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants"]
+    "tests": ["tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants"],
+    "result": "pass",
+    "evidence": "tests/test_middleware.py::test_interleaved_requests_do_not_leak_context_between_tenants PASSED -- two asyncio.gather'd requests with different (client_id, client_secret) pairs, each yielding via asyncio.sleep(0) mid-request to force interleaving, observe only their own credentials; contextvar is None again after both complete"
   },
   {
     "id": "TC-VAN-015",
@@ -115,6 +143,6 @@
     ],
     "expect": "Each list call returns real records with the documented fields and correct pagination; each get-by-known-id call returns that single record; the nonexistent-id call returns the not_found error envelope",
     "result": "blocked",
-    "evidence": "n/a — needs a real Vanta account; not available to DEV01 at design time, does not block publishing to INT per the vendor-mcp completion standard"
+    "evidence": "n/a -- needs a real Vanta account; not available to DEV01 at build time, does not block publishing to INT per the vendor-mcp completion standard"
   }
 ]
