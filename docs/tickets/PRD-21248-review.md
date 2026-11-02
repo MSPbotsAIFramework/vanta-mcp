@@ -20,7 +20,8 @@ Verdict: changes requested
 
 ### Fixes
 
-Fixed in `42625e2` (synced with `main @ f056d60`, unchanged since round 1 -- no re-merge needed).
+Fixed in `42625e2` (code) + `04be08e` (regression tests), synced with `main @ f056d60`
+(unchanged since round 1 -- no re-merge needed).
 
 1. [must-fix, `client.py:121` / `auth.py:41`] Added `src/vanta_mcp/logging_utils.py`: a
    per-request id (`ContextVar`, bound by `GatewayCredentialsMiddleware` before any
@@ -53,6 +54,16 @@ Fixed in `42625e2` (synced with `main @ f056d60`, unchanged since round 1 -- no 
    `missing_credentials` line on a request with no headers at all (bare process and the
    built container, see below).
 
+   Added `tests/test_logging.py` (TC-VAN-016..018 in `.ac.json`, `"source": "dev"` since
+   they weren't part of the original AC set): one per named error path
+   (`_raise_for_status`, `fetch_access_token`, the middleware's missing-header 401), each
+   asserting both that a structured log line was emitted *and* that the secret value used
+   in that call (bearer token / client secret) is absent from the rendered log text --
+   a test that only checked "logging was called" would not catch a leak. Confirmed red
+   against the pre-fix (round 1, `c207f65`) `client.py`/`auth.py`/`middleware.py` (swapped
+   in via `git show c207f65:<path>`, all 3 new tests fail), green again after restoring
+   the fix, with no other test's behavior changed.
+
 2. [suggestion, `client.py:73-119`] Not addressed in this round -- it was filed as
    non-blocking (no size guard on `VantaClient.get`'s list responses). Current field
    curation and the `limit<=100` hard cap keep responses well under SOP §14's 20,000-char
@@ -63,7 +74,7 @@ Fixed in `42625e2` (synced with `main @ f056d60`, unchanged since round 1 -- no 
 
 | Gate | Command | Result |
 |---|---|---|
-| Unit tests | `uv run pytest -q` | 20 passed, 0 failed (same 20 as round 1 -- no test was touched, only `src/`) |
+| Unit tests | `uv run pytest -q` | 23 passed, 0 failed (the original 20 unchanged + 3 new regression tests for this fix, TC-VAN-016..018) |
 | Lint | `uv run ruff check .` | All checks passed |
 | Chinese-text scan | `grep -rnP '[\x{4e00}-\x{9fff}]' --exclude-dir=.git --exclude-dir=.venv .` | No hits in any file this round touched (`src/vanta_mcp/{auth,client,middleware,logging_utils}.py`); pre-existing Chinese-language SOP quotes inside this review doc's own round-1 finding text are untouched content from round 1, not introduced by this fix |
 | Container build | `docker build --platform linux/amd64 -t vanta-mcp:prd21248-rework .` | Built successfully, `linux/amd64` confirmed via `docker inspect` |
@@ -71,8 +82,9 @@ Fixed in `42625e2` (synced with `main @ f056d60`, unchanged since round 1 -- no 
 | Bare-process smoke test | `uv run python -m vanta_mcp`, same three requests | Same results as the container; additionally called `tools/call vanta_get_controls` with placeholder credentials to force a real upstream 401 from `api.vanta.com/oauth/token` and confirm the new `upstream_error` log line (see above) |
 | Secret scan | `gitleaks` | **Not run this round** -- `gitleaks` binary is not installed in this sandbox (round 1 ran it on a different host). Manually checked `git diff` for this commit against common token/secret patterns (`ghs_`, `ghp_`, `glpat-`, `AKIA`, inline `secret=...` literals) -- no hits. The new code never stores or logs a credential value (that is the fix's own invariant), so there is nothing for a secret scanner to newly flag in it. |
 
-No regressions: same 20/20 unit tests, same 7-tool list, same error-mapping behavior and
-messages -- only a log line was added ahead of each existing raise. Cases TC-VAN-001
-through TC-VAN-014 are unaffected (none of them assert on logging); TC-VAN-015 remains
-blocked on a real Vanta account, unchanged from round 1.
+No regressions: the original 20 unit tests are unchanged and still pass, same 7-tool list,
+same error-mapping behavior and messages -- only a log line was added ahead of each
+existing raise. Cases TC-VAN-001 through TC-VAN-014 are unaffected (none of them assert on
+logging); TC-VAN-015 remains blocked on a real Vanta account, unchanged from round 1;
+TC-VAN-016..018 are new (this fix's own regression coverage).
 
