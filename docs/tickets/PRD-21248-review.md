@@ -1,5 +1,7 @@
 # PRD-21248 · Code review
 
+Status: frozen @ efeb224
+
 ## Round 1 · 2026-11-02 · reviewed 8c9b12e (base f056d60)
 
 Verdict: changes requested
@@ -88,3 +90,37 @@ existing raise. Cases TC-VAN-001 through TC-VAN-014 are unaffected (none of them
 logging); TC-VAN-015 remains blocked on a real Vanta account, unchanged from round 1;
 TC-VAN-016..018 are new (this fix's own regression coverage).
 
+
+## Round 2 · 2026-11-02 · reviewed efeb224 (base f056d60)
+
+Verdict: approved
+
+### Round-1 must-fix verification
+
+1. [confirmed fixed] `src/vanta_mcp/client.py:121` + `src/vanta_mcp/auth.py:41` — independently re-verified the round-1 must-fix (missing structured logging on every upstream-error path). `src/vanta_mcp/logging_utils.py` adds a per-request `ContextVar` id and `log_structured()`; it is now called from all three named sites (`client.py`'s `_raise_for_status` plus the two other raise sites inside `get()`, `auth.py`'s six `fetch_access_token` error branches via `_log_and_raise`, and `middleware.py`'s missing-credentials 401 path). Confirmed independently (not just trusting the Fixes section):
+   - `uv run pytest -q` → 23 passed (same count claimed in the Fixes section).
+   - `uv run ruff check .` → all checks passed.
+   - Chinese-text scan on `src/` and `tests/` → no hits.
+   - Read `client.py`'s `get()` method end-to-end: `path` is computed once at the top of `get()` and threaded through to `_raise_for_status(resource, resource_id, path, resp)` and both of the method's other `log_structured` call sites — no undefined-variable or wrong-scope risk.
+   - Read `middleware.py` end-to-end: `bind_request_id`/`reset_request_id` wrap the existing credential-contextvar try/finally correctly (request id is reset in an outer `finally`, independent of whether the inner credentials check 401s or the request proceeds) — no new leak of the request-id value, and the pre-existing per-tenant isolation (AC14) is untouched.
+   - `grep -n "log_structured"` across `src/`: every call site passes only `tool`/`resource` name, `path` (a URL, not a header value), `status`, and the mapped `code` — never `self._headers()`, `Authorization`, the bearer token, or `client_secret`/`client_id`. Matches the SOP §6 "never credentials" requirement the round-1 finding cited.
+   - `tests/test_logging.py`'s three new tests assert both that a log line is emitted *and* that the specific secret value used in that call is absent from the rendered log text — the right shape of regression test for a "secret must never be logged" fix (asserting only "logging was called" would not catch a future leak).
+
+   No new must-fix found in this round's diff (`logging_utils.py`, the `auth.py`/`client.py`/`middleware.py` changes, `tests/test_logging.py`, the `.ac.json` additions for TC-VAN-016..018).
+
+2. [suggestion, unchanged] `client.py:73-119` size-guard — still open per round 1, still non-blocking (see round 1's own note); not re-litigated here since the round-2 diff doesn't touch this code path.
+
+3. [suggestion] Self-test's own disclosure: `gitleaks` was not run this round (not installed in this sandbox) and a manual pattern check was substituted instead. This is honestly disclosed in the Fixes section rather than silently skipped, and the new code's own invariant (never log a credential value) makes a gitleaks miss unlikely here — not a must-fix, but worth actually running `gitleaks detect` on a host that has it before the next round that touches credential-handling code.
+
+### Gates (independently re-run, not just read from the Fixes section)
+
+| Gate | Command | Result |
+|---|---|---|
+| Unit tests | `uv run pytest -q` | 23 passed, 0 failed |
+| Lint | `uv run ruff check .` | All checks passed |
+| Chinese-text scan | `grep -rnP '[\x{4e00}-\x{9fff}]' --exclude-dir=.git --exclude-dir=.venv src/ tests/` | No hits |
+| README Connector section | `git diff 8c9b12e..efeb224 -- README.md` | Empty — unchanged since round 1, not in scope for this round |
+
+No regressions: same 23-test count and pass/fail split claimed in the Fixes section, confirmed by an independent run on this host (`uv` installed fresh for this review, not reusing the dev leg's environment).
+
+Status: frozen @ efeb224
